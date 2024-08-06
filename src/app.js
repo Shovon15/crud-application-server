@@ -1,11 +1,8 @@
 const express = require("express");
 const cors = require("cors");
-// const connectDB = require("./config/db");
-
 const { errorResponse } = require("./controllers/responseController");
 const createHttpError = require("http-errors");
 const taskRouter = require("./routers/taskRouter");
-const bodyParser = require("body-parser");
 const { serverPort } = require("./secret");
 
 
