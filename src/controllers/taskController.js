@@ -45,33 +45,34 @@ const createTask = async (req, res) => {
 const getTasks = async (req, res, next) => {
     let connection;
 
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 2;
-    const skip = (page - 1) * limit;
+    // const page = Number(req.query.page) || 1;
+    // const limit = Number(req.query.limit) || 2;
+    // const skip = (page - 1) * limit;
 
     try {
         connection = await db.getConnection();
 
-        // Query to fetch tasks with pagination
-        const query = `SELECT * FROM tasks LIMIT ?, ?`;
-        const [rows] = await connection.execute(query, [skip, limit]);
+        // const query = `SELECT * FROM tasks LIMIT ?, ?`;
+        // const [rows] = await connection.execute(query, [skip, limit]);
 
-        // Query to fetch total count of tasks (for pagination metadata)
-        const countQuery = `SELECT COUNT(*) AS count FROM tasks`;
-        const [countRows] = await connection.execute(countQuery);
-        const count = countRows[0].count;
+        // const countQuery = `SELECT COUNT(*) AS count FROM tasks`;
+        // const [countRows] = await connection.execute(countQuery);
+        // const count = countRows[0].count;
+
+        const query = `SELECT * FROM tasks`;
+        const [rows] = await connection.execute(query);
 
         return successResponse(res, {
             statusCode: 200,
             message: "Tasks returned successfully",
             payload: {
                 data: rows,
-                pagination: {
-                    totalPages: Math.ceil(count / limit),
-                    currentPage: page,
-                    previousPage: page > 1 ? page - 1 : null,
-                    nextPage: page < Math.ceil(count / limit) ? page + 1 : null,
-                },
+                // pagination: {
+                //     totalPages: Math.ceil(count / limit),
+                //     currentPage: page,
+                //     previousPage: page > 1 ? page - 1 : null,
+                //     nextPage: page < Math.ceil(count / limit) ? page + 1 : null,
+                // },
             },
         });
     } catch (error) {
