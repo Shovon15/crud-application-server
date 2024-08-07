@@ -36,33 +36,53 @@ const createTask = async (req, res) => {
         return next(error);
 
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 }
 
 const getTasks = async (req, res, next) => {
     let connection;
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 2;
+    const skip = (page - 1) * limit;
+
     try {
         connection = await db.getConnection();
 
-        const query = `SELECT * FROM tasks`;
-        const [rows] = await connection.execute(query);
+        // Query to fetch tasks with pagination
+        const query = `SELECT * FROM tasks LIMIT ?, ?`;
+        const [rows] = await connection.execute(query, [skip, limit]);
+
+        // Query to fetch total count of tasks (for pagination metadata)
+        const countQuery = `SELECT COUNT(*) AS count FROM tasks`;
+        const [countRows] = await connection.execute(countQuery);
+        const count = countRows[0].count;
 
         return successResponse(res, {
             statusCode: 200,
-            message: "tasks return successfully",
+            message: "Tasks returned successfully",
             payload: {
-                data: rows
+                data: rows,
+                pagination: {
+                    totalPages: Math.ceil(count / limit),
+                    currentPage: page,
+                    previousPage: page > 1 ? page - 1 : null,
+                    nextPage: page < Math.ceil(count / limit) ? page + 1 : null,
+                },
             },
         });
     } catch (error) {
         return next(error);
-
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
+
 
 const getTasksById = async (req, res, next) => {
     let connection;
@@ -73,6 +93,13 @@ const getTasksById = async (req, res, next) => {
 
         const query = `SELECT * FROM tasks WHERE id=${id}`;
         const [rows] = await connection.execute(query);
+
+        if (!rows || rows.length === 0) {
+            return errorResponse(res, {
+                statusCode: 404,
+                message: "Data not found",
+            });
+        }
 
         return successResponse(res, {
             statusCode: 200,
@@ -85,7 +112,9 @@ const getTasksById = async (req, res, next) => {
         return next(error);
 
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
@@ -93,40 +122,58 @@ const updateTaskById = async (req, res, next) => {
     let connection;
     const id = parseInt(req.params.id);
     const { task_name, description, is_done } = req.body;
+    const updateFields = [];
+    const params = [];
 
-    if (!task_name) {
+    if (task_name) {
+        updateFields.push('task_name=?');
+        params.push(task_name);
+    }
+    if (description) {
+        updateFields.push('description=?');
+        params.push(description);
+    }
+    if (typeof is_done !== 'undefined') {
+        updateFields.push('is_done=?');
+        params.push(is_done);
+    }
+
+    if (updateFields.length === 0) {
         return errorResponse(res, {
             statusCode: 400,
-            message: "Task name cannot be empty.",
+            message: "No valid fields to update.",
         });
     }
 
     try {
         connection = await db.getConnection();
 
-        const query =
-            'UPDATE tasks SET task_name=?, description=?, is_done=?, updated_at=? WHERE id=?';
-        const [result] = await connection.execute(query,
-            [task_name, description, is_done, new Date(), id]);
+        const query = `UPDATE tasks SET ${updateFields.join(', ')}, updated_at=? WHERE id=?`;
+        params.push(new Date(), id);
+
+        const [result] = await connection.execute(query, params);
 
         if (!result.affectedRows) {
             return errorResponse(res, {
                 statusCode: 400,
-                message: "could not Update task",
+                message: "Could not update task.",
             });
         }
+
         return successResponse(res, {
             statusCode: 200,
-            message: "Task Updated",
+            message: "Task updated successfully.",
             payload: {},
         });
     } catch (error) {
         return next(error);
-
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
+
 
 const deleteTaskById = async (req, res, next) => {
     let connection;
@@ -154,7 +201,9 @@ const deleteTaskById = async (req, res, next) => {
         return next(error);
 
     } finally {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
